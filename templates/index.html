@@ -52,14 +52,23 @@
                 <h3>Temperature Trends</h3>
                 <canvas id="tempChart"></canvas>
             </div>
+            
+            <div class="card chart-container">
+                <h3>Humidity Trends</h3>
+                <canvas id="humChart"></canvas>
+            </div>
+            
+            <div class="card chart-container">
+                <h3>Pressure Trends</h3>
+                <canvas id="presChart"></canvas>
+            </div>
 
             <div class="side-panel">
                 <div class="card prediction-card">
-                    <h3>Analytics & Warnings</h3>
+                    <h3>Current System State</h3>
                     <div id="alerts-list">
-                        <div class="alert-item safe">System Nominal</div>
+                        <div class="alert-item safe">✅ System Nominal</div>
                     </div>
-                    
                     <div class="analysis-stats">
                         <div class="stat-row">
                             <span>Z-Score Anomaly:</span>
@@ -69,11 +78,14 @@
                             <span>Macro Trend:</span>
                             <span id="val-trend">Stable</span>
                         </div>
-                        <div class="stat-row prediction-row">
-                            <span>Estimated Breach In:</span>
-                            <span id="val-countdown" class="accent-text">-- min</span>
-                        </div>
                     </div>
+                </div>
+
+                <div class="card log-card">
+                    <h3>Historical Alarm Log</h3>
+                    <ul id="alarm-history-list" class="log-list">
+                        <!-- Populated by JS -->
+                    </ul>
                 </div>
 
                 <div class="card controls-card">

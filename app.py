@@ -1,13 +1,17 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from sensor import background_sensor_loop, update_thresholds_internal, get_current_state
+import db
 
 app = Flask(__name__)
 # Explicitly force Threading mode to bypass auto-discovery of left-over eventlet packages
 socketio = SocketIO(app, async_mode='threading', cors_allowed_origins="*")
 
-thread = None
+# Initialize SQLite Alarm Database
+db.init_db()
 
+# Start background loop immediately upon server startup
+thread = socketio.start_background_task(background_sensor_loop, socketio)
 @app.route('/')
 def index():
     """
@@ -19,14 +23,9 @@ def index():
 def connect():
     """
     Handle client WebSocket connection.
-    Spawn the background thread for continuous data polling if not alive.
     """
-    global thread
     print("Client connected via SocketIO.")
     socketio.emit('sync_state', get_current_state())
-    if thread is None:
-        print("Starting background sensor loop thread...")
-        thread = socketio.start_background_task(background_sensor_loop, socketio)
 
 @socketio.on('update_thresholds')
 def handle_threshold_updates(data):

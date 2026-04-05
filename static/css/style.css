@@ -230,8 +230,38 @@ input[type="number"]:focus {
     color: var(--danger);
 }
 
+/* Persistent Alarm Log */
+.log-card {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.log-list li {
+    padding: 0.8rem;
+    border-bottom: 1px solid var(--card-border);
+    font-size: 0.85rem;
+}
+
+.log-list li:last-child {
+    border-bottom: none;
+}
+
+.log-list li .log-time {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
 @media (max-width: 900px) {
     .main-content {
         grid-template-columns: 1fr;
     }
 }
+

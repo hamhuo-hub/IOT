@@ -3,19 +3,52 @@ import requests
 import json
 import sys
 from collections import deque
-from analysis import detect_spike, detect_trend, predict_threshold_breach
+from analysis import detect_spike, detect_trend
+import db
+
+import os
+import subprocess
+
 
 try:
     from sense_emu import SenseHat
+    import sense_emu.RTIMU
+    import struct
+    
+    # -------------------------------------------------------------------------
+    # HOTFIX: 64-bit Architecture ABI Struct Alignment Bug in sense-emu
+    # The C-compiled GUI uses packed structs, but Python's sense_emu package 
+    # uses Native '@' format which introduces padding bytes on 64-bit systems 
+    # (like Raspberry Pi OS Bookworm AArch64), shifting all data reads by 1+ bytes
+    # and mixing Temperature sliders into Humidity data.
+    # We dynamically intercept and force Standard '=' (no padding) in memory.
+    # -------------------------------------------------------------------------
+    sense_emu.RTIMU.HUMIDITY_DATA = struct.Struct(sense_emu.RTIMU.HUMIDITY_DATA.format.replace('@', '='))
+    sense_emu.RTIMU.PRESSURE_DATA = struct.Struct(sense_emu.RTIMU.PRESSURE_DATA.format.replace('@', '='))
+    sense_emu.RTIMU.IMU_DATA = struct.Struct(sense_emu.RTIMU.IMU_DATA.format.replace('@', '='))
+    
 except ImportError:
     print("FATAL: sense_emu package is not installed.")
     sys.exit(1)
+
+def is_gui_running():
+    """Manually checks if the GUI process is alive to prevent silent auto-spawns."""
+    try:
+        # Check if sense_emu_gui process is running
+        output = subprocess.check_output(["pgrep", "-f", "sense_emu_gui"])
+        return len(output.strip()) > 0
+    except subprocess.CalledProcessError:
+        return False
+    except Exception:
+        return True # Fallback if pgrep fails for some reason
 
 sense = None
 
 # Global data queues for analysis
 MAX_QUEUE_LEN = 60
 temp_queue = deque(maxlen=MAX_QUEUE_LEN)
+hum_queue = deque(maxlen=MAX_QUEUE_LEN)
+pres_queue = deque(maxlen=MAX_QUEUE_LEN)
 time_queue = deque(maxlen=MAX_QUEUE_LEN)
 
 # Global Thresholds (Mutable)
@@ -28,8 +61,9 @@ thresholds = {
     'pres_max': 1030
 }
 
-# VictoriaMetrics config
-VM_WRITE_URL = "http://localhost:8428/write"
+# State tracker for alarms deduplication
+active_alarms = set()
+
 
 def get_sensor_data():
     """
@@ -37,6 +71,11 @@ def get_sensor_data():
     Will reload the SenseHat instance if memory mapping is corrupted.
     """
     global sense
+    
+    if not is_gui_running():
+        sense = None
+        raise ValueError("Sense HAT Emulator GUI process is not running. Please launch 'sense_emu_gui'.")
+        
     if sense is None:
         sense = SenseHat()
         
@@ -44,12 +83,15 @@ def get_sensor_data():
     hum = sense.get_humidity()
     pres = sense.get_pressure()
 
-    # Sense HAT Emulator is known to return crazy garbage values (like 16000% humidity or exact flat 0)
-    # if the Python object was initialized BEFORE the GUI was opened (Memory Map corruption).
-    # If we detect wild non-physical values, we destroy the corrupted instance and raise error to reset.
+    # Sense HAT Emulator returns exact zeros or crazy garbage values (like 16000 humidity)
+    # when the memory map structure is corrupted or misaligned (e.g. 32-bit vs 64-bit OS).
     if hum < 0 or hum > 150 or pres < 0 or pres > 2000 or (temp == 0.0 and pres == 0.0):
         sense = None
-        raise ValueError("Sense HAT shared memory corrupted (GUI restarted). Forcing remap...")
+        raise ValueError(
+            f"Sense HAT Memory Map is corrupted or architecture-mismatched. "
+            f"(Values read - Temp: {temp}, Hum: {hum}, Pres: {pres}). "
+            "Please clear the emulator cache or reinstall system packages."
+        )
 
     return {
         'temperature': round(temp, 2),
@@ -73,16 +115,7 @@ def clear_physical_alarm():
         except Exception:
             pass
 
-def push_to_victoriametrics(data):
-    """
-    Push data to VictoriaMetrics using InfluxDB line protocol.
-    measurement,tag_key=tag_val field_key=field_val timestamp
-    """
-    line = f"environment,device=raspberrypi temperature={data['temperature']},humidity={data['humidity']},pressure={data['pressure']}"
-    try:
-        requests.post(VM_WRITE_URL, data=line, timeout=0.5)
-    except requests.exceptions.RequestException:
-        pass
+
 
 def update_thresholds_internal(new_thresholds):
     global thresholds
@@ -97,8 +130,11 @@ def get_current_state():
         'thresholds': thresholds,
         'history': {
             'temperatures': list(temp_queue),
+            'humidities': list(hum_queue),
+            'pressures': list(pres_queue),
             'timestamps': [int(t * 1000) for t in time_queue]
-        }
+        },
+        'historical_alarms': db.get_recent_alarms(50)
     }
 
 def background_sensor_loop(socketio):
@@ -106,6 +142,7 @@ def background_sensor_loop(socketio):
     The main background task running via eventlet.
     Takes socketio instance to broadcast data.
     """
+    global active_alarms
     print("\nSystem started. Initiating background sensor loop...")
     gui_warning_printed = False
     
@@ -130,11 +167,11 @@ def background_sensor_loop(socketio):
                 'timestamp': int(time.time() * 1000),
                 'data': {'temperature': None, 'humidity': None, 'pressure': None},
                 'alarms': ["CRITICAL: Sense HAT Hardware Offline. Please start 'sense-emu-gui'"],
+                'new_log_alarms': [],
                 'analysis': {
                     'trend': 'offline',
                     'spike_detected': False,
-                    'z_score': 0.0,
-                    'predicted_breach_sec': None
+                    'z_score': 0.0
                 }
             }
             socketio.emit('sensor_update', payload)
@@ -146,47 +183,65 @@ def background_sensor_loop(socketio):
         
         # Add to queues for analysis
         temp_queue.append(data['temperature'])
+        hum_queue.append(data['humidity'])
+        pres_queue.append(data['pressure'])
         time_queue.append(current_time_sec)
         
         # --- Perform Data Analysis (Requirement 5) ---
-        is_spike, z_val = detect_spike(list(temp_queue))
-        trend = detect_trend(list(temp_queue))
-        predicted_breach_time = predict_threshold_breach(
-            list(time_queue), list(temp_queue), thresholds['temp_max'], trend
-        )
+        t_spike, t_z = detect_spike(list(temp_queue))
+        h_spike, h_z = detect_spike(list(hum_queue))
+        p_spike, p_z = detect_spike(list(pres_queue))
+        
+        trend = detect_trend(list(temp_queue)) # Macro trend defaults to temp
+        
+        is_spike = t_spike or h_spike or p_spike
+        z_val = max(t_z, h_z, p_z)
         # ---------------------------------------------
         
         # Check standard threshold warnings
-        alarms = []
-        if data['temperature'] < thresholds['temp_min']: alarms.append("Temperature too low!")
-        if data['temperature'] > thresholds['temp_max']: alarms.append("Temperature too high!")
-        if data['humidity'] < thresholds['hum_min']: alarms.append("Humidity too low!")
-        if data['humidity'] > thresholds['hum_max']: alarms.append("Humidity too high!")
-        if data['pressure'] < thresholds['pres_min']: alarms.append("Pressure too low!")
-        if data['pressure'] > thresholds['pres_max']: alarms.append("Pressure too high!")
+        current_alarms = set()
+        if data['temperature'] < thresholds['temp_min']: current_alarms.add("Temperature too low!")
+        if data['temperature'] > thresholds['temp_max']: current_alarms.add("Temperature too high!")
+        if data['humidity'] < thresholds['hum_min']: current_alarms.add("Humidity too low!")
+        if data['humidity'] > thresholds['hum_max']: current_alarms.add("Humidity too high!")
+        if data['pressure'] < thresholds['pres_min']: current_alarms.add("Pressure too low!")
+        if data['pressure'] > thresholds['pres_max']: current_alarms.add("Pressure too high!")
         
-        if is_spike:
-            alarms.append("Sudden temperature spike/drop detected!")
+        if t_spike: current_alarms.add("Sudden temperature spike/drop detected!")
+        if h_spike: current_alarms.add("Sudden humidity spike/drop detected!")
+        if p_spike: current_alarms.add("Sudden pressure spike/drop detected!")
+        
+        # Determine NEW edge-triggered alarms for SQLite Persistence
+        new_alarms = current_alarms - active_alarms
+        new_db_logs = []
+        for msg in new_alarms:
+            db.log_alarm(msg, "danger")
+            # Create object to send to frontend immediately for append
+            new_db_logs.append({'message': msg, 'severity': 'danger', 'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")})
+            print(f"\n[DB ALARM LOGGED] - {msg}")
             
-        # Trigger hardware feedback
-        if len(alarms) > 0:
+        active_alarms = current_alarms
+        alarms_list = list(current_alarms)
+            
+        # Trigger hardware feedback & Console log
+        if len(alarms_list) > 0:
             trigger_physical_alarm()
         else:
             clear_physical_alarm()
             
-        # Send to VictoriaMetrics
-        push_to_victoriametrics(data)
+        # Send to VictoriaMetrics via Database Layer
+        db.push_to_tsdb(data)
         
         # Construct payload for web interface
         payload = {
             'timestamp': current_time_ms,
             'data': data,
-            'alarms': alarms,
+            'alarms': alarms_list,
+            'new_log_alarms': new_db_logs,
             'analysis': {
                 'trend': trend,
                 'spike_detected': is_spike,
-                'z_score': round(z_val, 2),
-                'predicted_breach_sec': round(predicted_breach_time, 1) if predicted_breach_time else None
+                'z_score': round(z_val, 2)
             }
         }
         

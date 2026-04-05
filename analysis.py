@@ -22,7 +22,7 @@ def detect_spike(data_queue, threshold_z=3.0):
         
     z_score = abs((current_value - mean) / std)
     
-    return z_score > threshold_z, z_score
+    return bool(z_score > threshold_z), float(z_score)
 
 
 def detect_trend(data_queue, window_size=5):
@@ -53,32 +53,4 @@ def detect_trend(data_queue, window_size=5):
     return 'stable'
 
 
-def predict_threshold_breach(time_queue, data_queue, threshold_value, trend):
-    """
-    Predicts when the threshold will be breached using OLS linear regression.
-    time_queue: list of timestamps (relative or absolute)
-    data_queue: list of values
-    Returns: remaining_time_seconds as float, or None if no breach predicted.
-    """
-    if len(time_queue) < 10 or len(data_queue) < 10:
-        return None
-        
-    # Perform OLS linear regression
-    slope, intercept, r_value, p_value, std_err = stats.linregress(time_queue, data_queue)
-    
-    if slope == 0:
-        return None
-        
-    # Predict time when y = threshold_value -> x = (y - intercept) / slope
-    predicted_time = (threshold_value - intercept) / slope
-    
-    current_time = time_queue[-1]
-    remaining_time = predicted_time - current_time
-    
-    # Only return valid future predictions depending on the trend
-    if trend == 'upward' and slope > 0 and remaining_time > 0:
-        return remaining_time
-    elif trend == 'downward' and slope < 0 and remaining_time > 0:
-        return remaining_time
-        
-    return None
+

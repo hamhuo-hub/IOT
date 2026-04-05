@@ -1,6 +1,6 @@
 Flask==3.0.3
 Flask-SocketIO==5.3.6
-sense_emu==1.2
+sense_emu==1.2.1
 numpy==1.26.4
 scipy==1.13.0
 requests==2.31.0

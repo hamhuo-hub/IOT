@@ -1,0 +1,36 @@
+C:\Users\Adfb\Desktop\assignment1\.venv\Lib\site-packages\sense_emu\sense_hat.py:80: Warning: No emulator detected; spawning sense_emu_gui
+  warnings.warn(Warning('No emulator detected; spawning sense_emu_gui'))
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    from sense_emu import SenseHat; s = SenseHat()
+                                        ~~~~~~~~^^
+  File "C:\Users\Adfb\Desktop\assignment1\.venv\Lib\site-packages\sense_emu\sense_hat.py", line 88, in __init__
+    sp.Popen(
+    ~~~~~~~~^
+        ['sense_emu_gui'], preexec_fn=setpgrp,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        stdin=sp.DEVNULL, stdout=sp.DEVNULL, stderr=sp.DEVNULL,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        close_fds=True)
+        ^^^^^^^^^^^^^^^
+  File "C:\Users\Adfb\AppData\Local\Python\pythoncore-3.14-64\Lib\subprocess.py", line 1038, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Adfb\AppData\Local\Python\pythoncore-3.14-64\Lib\subprocess.py", line 1552, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] The system cannot find the file specified
