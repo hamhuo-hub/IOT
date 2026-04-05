@@ -1,0 +1,237 @@
+:root {
+    --bg-color: #f4f7f6;
+    --card-bg: #ffffff;
+    --card-border: #e0e0e0;
+    --text-main: #333333;
+    --text-muted: #666666;
+    --accent: #2c3e50;
+    --danger: #dc3545;
+    --safe: #28a745;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    min-height: 100vh;
+    padding-bottom: 3rem;
+}
+
+.dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--card-border);
+}
+
+h1 {
+    font-size: 1.8rem;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+/* Cards */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.card h3 {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.value-display {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.value-display span:first-child {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.value-display .unit {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+/* Main Content Area */
+.main-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 450px;
+    width: 100%;
+}
+
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Forms & Inputs */
+.input-group {
+    margin-bottom: 1.2rem;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.range-inputs {
+    display: flex;
+    gap: 0.8rem;
+}
+
+input[type="number"] {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 0.6rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 0.8rem;
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.btn-primary:hover {
+    background-color: #1a252f;
+}
+
+/* Alerts / Predictions */
+#alerts-list {
+    margin-bottom: 1rem;
+    min-height: 50px;
+}
+
+.alert-item {
+    padding: 0.8rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.alert-item.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-item.safe {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--card-border);
+    font-size: 0.95rem;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.prediction-row {
+    font-weight: bold;
+}
+
+.accent-text {
+    color: var(--accent);
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--danger);
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.connected {
+    background-color: var(--safe);
+}
+
+/* Dynamic State Classes */
+.card-alert {
+    border-color: var(--danger) !important;
+    background-color: #fffafb !important;
+}
+
+.card-alert .value-display span:first-child {
+    color: var(--danger);
+}
+
+@media (max-width: 900px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+}

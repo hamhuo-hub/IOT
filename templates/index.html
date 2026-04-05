@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Environment Monitor</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>Environment Monitoring System</h1>
+            <div class="status-indicator">
+                <span class="dot" id="connection-dot"></span>
+                <span id="connection-status">Connecting...</span>
+            </div>
+        </header>
+
+        <section class="metrics-grid">
+            <div class="card metric-card" id="card-temp">
+                <h3>Temperature</h3>
+                <div class="value-display">
+                    <span id="val-temp">--</span>
+                    <span class="unit">°C</span>
+                </div>
+            </div>
+            
+            <div class="card metric-card" id="card-hum">
+                <h3>Humidity</h3>
+                <div class="value-display">
+                    <span id="val-hum">--</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+
+            <div class="card metric-card" id="card-pres">
+                <h3>Pressure</h3>
+                <div class="value-display">
+                    <span id="val-pres">--</span>
+                    <span class="unit">hPa</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="main-content">
+            <div class="card chart-container">
+                <h3>Temperature Trends</h3>
+                <canvas id="tempChart"></canvas>
+            </div>
+
+            <div class="side-panel">
+                <div class="card prediction-card">
+                    <h3>Analytics & Warnings</h3>
+                    <div id="alerts-list">
+                        <div class="alert-item safe">System Nominal</div>
+                    </div>
+                    
+                    <div class="analysis-stats">
+                        <div class="stat-row">
+                            <span>Z-Score Anomaly:</span>
+                            <span id="val-zscore">0.0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Macro Trend:</span>
+                            <span id="val-trend">Stable</span>
+                        </div>
+                        <div class="stat-row prediction-row">
+                            <span>Estimated Breach In:</span>
+                            <span id="val-countdown" class="accent-text">-- min</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card controls-card">
+                    <h3>Threshold Configuration</h3>
+                    <form id="thresholds-form">
+                        <div class="input-group">
+                            <label>Temp (°C) Min / Max</label>
+                            <div class="range-inputs">
+                                <input type="number" id="temp_min" value="0" required>
+                                <input type="number" id="temp_max" value="40" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Humidity (%) Min / Max</label>
+                            <div class="range-inputs">
+                                <input type="number" id="hum_min" value="10" required>
+                                <input type="number" id="hum_max" value="90" required>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Pressure (hPa) Min / Max</label>
+                            <div class="range-inputs">
+                                <input type="number" id="pres_min" value="970" required>
+                                <input type="number" id="pres_max" value="1030" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">Apply Settings</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Custom JS -->
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
